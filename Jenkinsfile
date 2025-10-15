@@ -1,65 +1,43 @@
-@Library("Shared") _
 pipeline{
     
     agent { label "dev"};
     
     stages{
-        stage("Code Clone"){
+        stage("code"){
             steps{
-               script{
-                   clone("https://github.com/LondheShubham153/two-tier-flask-app.git", "master")
-               }
+                git url:"https://github.com/anshdeploys/two-tier-flask-app.git", branch:"master"
+                
             }
         }
-        stage("Trivy File System Scan"){
+        stage("test"){
             steps{
-                script{
-                    trivy_fs()
+                echo "under proccess"
+                
+            }
+        }
+        stage("build"){
+            steps{
+                sh "docker build -t two-tier-flask-app:latest ."
+                
+            }
+        }
+        stage("dockerhub"){
+            steps{
+                withCredentials([usernamePassword(
+                    credentialsId:"dockerhubCreds", 
+                    usernameVariable: "dockerUser", 
+                    passwordVariable: "dockerPass"
+                )]){
+                sh "docker login -u ${dockerUser} -p ${dockerPass}"
+                sh "docker image tag two-tier-flask-app ${dockerUser}/two-tier-flask-app:latest"
+                sh "docker push ${dockerUser}/two-tier-flask-app:latest"
                 }
-            }
+            }    
         }
-        stage("Build"){
+        stage("deploy"){
             steps{
-                sh "docker build -t two-tier-flask-app ."
-            }
-            
-        }
-        stage("Test"){
-            steps{
-                echo "Developer / Tester tests likh ke dega..."
-            }
-            
-        }
-        stage("Push to Docker Hub"){
-            steps{
-                script{
-                    docker_push("dockerHubCreds","two-tier-flask-app")
-                }  
-            }
-        }
-        stage("Deploy"){
-            steps{
-                sh "docker compose up -d --build flask-app"
+                sh "docker-compose up -d --build"
             }
         }
     }
-
-post{
-        success{
-            script{
-                emailext from: 'mentor@trainwithshubham.com',
-                to: 'mentor@trainwithshubham.com',
-                body: 'Build success for Demo CICD App',
-                subject: 'Build success for Demo CICD App'
-            }
-        }
-        failure{
-            script{
-                emailext from: 'mentor@trainwithshubham.com',
-                to: 'mentor@trainwithshubham.com',
-                body: 'Build Failed for Demo CICD App',
-                subject: 'Build Failed for Demo CICD App'
-            }
-        }
-    }
-}
+}        
